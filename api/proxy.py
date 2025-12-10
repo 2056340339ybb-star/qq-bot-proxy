@@ -1,38 +1,28 @@
-from flask import Flask, request, jsonify
+import json
 import requests
-from flask_cors import CORS
-
-app = Flask(__name__)
-CORS(app)
-
-# 替换为你的云函数完整URL
-CF_URL = "https://1391451970-73tz9amjq1.ap-guangzhou.tencentscf.com"
-
-@app.route('/', methods=['GET'])
-def handle_verify():
-    echostr = request.args.get('echostr', '验证失败')
-    return echostr
-
-@app.route('/', methods=['POST'])
-def handle_message():
-    try:
-        qq_data = request.get_json()
-        cloud_response = requests.post(CF_URL, json=qq_data)
-        return jsonify(cloud_response.json())
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
 
 def handler(event, context):
-    from flask import request
-    with app.test_request_context(
-        path=event['path'],
-        method=event['httpMethod'],
-        headers=event['headers'],
-        data=event['body']
-    ):
-        response = app.full_dispatch_request()
+    # 处理GET验证请求
+    if event['httpMethod'] == 'GET':
+        echostr = event['queryStringParameters'].get('echostr', 'success')
         return {
-            'statusCode': response.status_code,
-            'headers': dict(response.headers),
-            'body': response.get_data(as_text=True)
+            'statusCode': 200,
+            'headers': {'Content-Type': 'text/plain'},
+            'body': echostr
         }
+    # 处理POST消息请求
+    elif event['httpMethod'] == 'POST':
+        try:
+            qq_data = json.loads(event['body'])
+            # 替换为你的云函数URL
+            cf_response = requests.post("https://1391451970-73tz9amjq1.ap-guangzhou.tencentscf.com", json=qq_data)
+            return {
+                'statusCode': 200,
+                'headers': {'Content-Type': 'application/json'},
+                'body': json.dumps(cf_response.json())
+            }
+        except Exception as e:
+            return {
+                'statusCode': 500,
+                'body': json.dumps({'error': str(e)})
+            }
